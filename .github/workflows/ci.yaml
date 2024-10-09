@@ -1,0 +1,95 @@
+name: Go CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+        - 'v*.*.*-*'
+  pull_request:
+    branches: [ main ]
+
+env:
+  MAJOR_V: 0
+  MINOR_V: 0
+  PATCH_V: 1
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  execute-lint:
+    uses: fruetalo182/github-workflows-templates/.github/workflows/linter-go.yaml@main
+    with:
+      VALIDATE_GO: true
+      VALIDATE_GO_MODULES: true
+      VALIDATE_GO_RELEASER: true
+    secrets: inherit
+
+  build-push-ghcr-release:
+    needs: execute-lint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Run tests
+      run: go test -v ./...
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:${{ github.sha }}
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:v${{ env.MAJOR_V }}.${{ env.MINOR_V }}.${{ env.PATCH_V }}-${{ github.run_number }}
+
+    - name: Create Tag
+      run: |
+        git tag v${{ env.MAJOR_V }}.${{ env.MINOR_V }}.${{ env.PATCH_V }}-${{ github.run_number }}
+        git push origin v${{ env.MAJOR_V }}.${{ env.MINOR_V }}.${{ env.PATCH_V }}-${{ github.run_number }}
+
+    - name: Build Binary
+      run: |
+        GOOS=linux GOARCH=amd64 go build -o image-server-linux-amd64 ./cmd/server
+        GOOS=darwin GOARCH=amd64 go build -o image-server-darwin-amd64 ./cmd/server
+        GOOS=windows GOARCH=amd64 go build -o image-server-windows-amd64.exe ./cmd/server
+
+    - name: Release binaries
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          image-server-linux-amd64
+          image-server-darwin-amd64
+          image-server-windows-amd64.exe
+        tag_name: v${{ env.MAJOR_V }}.${{ env.MINOR_V }}.${{ env.PATCH_V }}-${{ github.run_number }}
