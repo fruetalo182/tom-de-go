@@ -3,8 +3,9 @@ package main
 import (
 	"log"
 
-	"image-server/internal/config"
-	"image-server/internal/server"
+	"tom-de-go/internal/config"
+	"tom-de-go/internal/server"
+	
 )
 
 func main() {

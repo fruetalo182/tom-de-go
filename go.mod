@@ -1,4 +1,4 @@
-module image-server
+module tom-de-go
 
 go 1.20
 

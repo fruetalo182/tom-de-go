@@ -1,9 +1,9 @@
 package server
 
 import (
-	"image-server/internal/config"
-	"image-server/internal/handlers"
-	"image-server/internal/middleware"
+	"tom-de-go/internal/config"
+	"tom-de-go/internal/handlers"
+	"tom-de-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
