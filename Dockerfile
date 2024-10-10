@@ -28,7 +28,6 @@ COPY --from=builder /app/main .
 
 # Copy the image file
 COPY /media/tom_real.png /app/media/
-COPY /media/tom.png /app/media/
 
 # Set environment variables
 ENV PORT=8080
